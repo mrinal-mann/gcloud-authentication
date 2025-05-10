@@ -7,11 +7,17 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Format private key to handle escaped newlines
+function formatPrivateKey(key: string | undefined): string {
+  if (!key) return "";
+  return key.replace(/\\n/g, '\n');
+}
+
 // Initialize Google Auth for Cloud Run
-export const cloudRunAuth = new GoogleAuth({
+const cloudRunAuth = new GoogleAuth({
   credentials: {
     client_email: process.env.CLOUD_RUN_SERVICE_ACCOUNT_EMAIL,
-    private_key: process.env.CLOUD_RUN_PRIVATE_KEY?.replace(/\\n/g, '\n')
+    private_key: formatPrivateKey(process.env.CLOUD_RUN_PRIVATE_KEY)
   },
   scopes: ['https://www.googleapis.com/auth/cloud-platform']
 });
@@ -24,7 +30,12 @@ export async function getCloudRunToken(): Promise<string> {
   try {
     const client = await cloudRunAuth.getClient();
     const tokenResponse = await client.getAccessToken();
-    return tokenResponse.token || '';
+    
+    if (!tokenResponse.token) {
+      throw new Error('Token not received from Google Auth');
+    }
+    
+    return tokenResponse.token;
   } catch (error) {
     console.error('Error getting Cloud Run token:', error);
     throw new Error('Failed to get Cloud Run access token');
@@ -40,9 +51,14 @@ export async function getFCMAuthToken(): Promise<string> {
     // Get service account details from environment
     const serviceAccount = {
       client_email: process.env.FIREBASE_CLIENT_EMAIL,
-      private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      private_key: formatPrivateKey(process.env.FIREBASE_PRIVATE_KEY),
       project_id: process.env.FIREBASE_PROJECT_ID
     };
+    
+    // Validate required credentials
+    if (!serviceAccount.client_email || !serviceAccount.private_key) {
+      throw new Error('Missing Firebase service account credentials');
+    }
     
     // Create JWT client with appropriate scope
     const jwtClient = new JWT({
@@ -53,7 +69,12 @@ export async function getFCMAuthToken(): Promise<string> {
     
     // Get the token
     const token = await jwtClient.authorize();
-    return token.access_token || '';
+    
+    if (!token.access_token) {
+      throw new Error('FCM token not received from JWT client');
+    }
+    
+    return token.access_token;
   } catch (error) {
     console.error('Error generating FCM token:', error);
     throw new Error('Failed to generate FCM authorization token');
