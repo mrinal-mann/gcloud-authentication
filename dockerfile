@@ -13,7 +13,7 @@ COPY dist ./dist
 ENV NODE_ENV=production
 
 # Expose the port
-EXPOSE 4000
+EXPOSE 8080
 
 # Start the server
 CMD ["npm", "start"]

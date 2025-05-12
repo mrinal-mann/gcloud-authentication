@@ -7,21 +7,20 @@ dotenv.config();
 
 const app = express();
 
-// Configure CORS
+// Configure CORS properly for all origins
 const corsOptions = {
-  origin: ["http://localhost:8081", "http://localhost:3000", "*"], // Allow localhost and other origins
+  origin: "*", // Allow all origins in production
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
-  optionsSuccessStatus: 204,
+  optionsSuccessStatus: 200,
 };
 
-// Middleware
+// Apply CORS first, before any other middleware
 app.use(cors(corsOptions));
-app.use(express.json());
 
-// Add explicit CORS handling for preflight requests
-app.options("*", cors(corsOptions));
+// Then parse JSON
+app.use(express.json());
 
 // Routes
 app.use("/auth", authRoutes);
@@ -31,8 +30,13 @@ app.get("/", (req, res) => {
   res.json({ message: "Auth Proxy Service" });
 });
 
-// Start server
-const PORT = process.env.PORT || 4000;
+// Health check
+app.get("/health", (req, res) => {
+  res.json({ status: "healthy", timestamp: new Date().toISOString() });
+});
+
+// Start server on port 8080 for Cloud Run
+const PORT = 4000;
 app.listen(PORT, () => {
   console.log(`Auth proxy server running on port ${PORT}`);
 });

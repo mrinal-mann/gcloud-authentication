@@ -2,7 +2,7 @@
  * Authentication Routes
  * Provides endpoints for token generation and authentication
  */
-import { Router, Request, Response, response } from "express";
+import { Router, Request, Response } from "express";
 import { getCloudRunToken, getFCMAuthToken } from "../utils/google-auth";
 import { verifyFirebaseToken } from "../middleware/firebase";
 
@@ -33,31 +33,21 @@ router.get(
 );
 
 /**
- * Handle OPTIONS requests for the public-token endpoint
- */
-router.options("/public-token", (req: Request, res: Response) => {
-  // Add CORS headers directly
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.status(204).end();
-});
-
-/**
  * Route to get a public token - does not require authentication
  * This is used by the frontend to authenticate with the backend service
  */
 router.get("/public-token", async (req: Request, res: Response) => {
   try {
+    console.log("Received request for public token");
+    
     const token = await getCloudRunToken();
 
     // Return the token with an expiration
-    console.log("Public token:", token);
+    console.log("Generated public token successfully");
     res.json({
       token,
       expiresIn: 3600,
     });
-    console.log("Public token response:", response);
   } catch (error) {
     console.error("Error in /public-token route:", error);
     res.status(500).json({ error: "Failed to get access token" });
