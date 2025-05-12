@@ -2,11 +2,20 @@
  * Authentication Routes
  * Provides endpoints for token generation and authentication
  */
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { getCloudRunToken, getFCMAuthToken } from "../utils/google-auth";
 import { verifyFirebaseToken } from "../middleware/firebase";
 
 const router = Router();
+export const validateServiceRequest = (req: Request, res: Response, next: NextFunction) => {
+  const serviceToken = req.headers['x-service-token'];
+  
+  if (serviceToken !== process.env.SERVICE_AUTH_TOKEN) {
+    return res.status(401).json({ error: 'Unauthorized service request' });
+  }
+  
+  next();
+};
 
 /**
  * Route to get a Cloud Run token
