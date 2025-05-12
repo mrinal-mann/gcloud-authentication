@@ -7,13 +7,17 @@ import { getCloudRunToken, getFCMAuthToken } from "../utils/google-auth";
 import { verifyFirebaseToken } from "../middleware/firebase";
 
 const router = Router();
-export const validateServiceRequest = (req: Request, res: Response, next: NextFunction) => {
-  const serviceToken = req.headers['x-service-token'];
-  
+export const validateServiceRequest = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const serviceToken = req.headers["x-service-token"];
+
   if (serviceToken !== process.env.SERVICE_AUTH_TOKEN) {
-    return res.status(401).json({ error: 'Unauthorized service request' });
+    return res.status(401).json({ error: "Unauthorized service request" });
   }
-  
+
   next();
 };
 
@@ -42,13 +46,16 @@ router.get(
 );
 
 /**
- * Route to get a public token - does not require authentication
+ * Route to get a public token - requires Google Cloud authentication
  * This is used by the frontend to authenticate with the backend service
+ * Caller must provide a valid Google identity token in the Authorization header
  */
 router.get("/public-token", async (req: Request, res: Response) => {
   try {
     console.log("Received request for public token");
-    
+    // The request is authenticated via IAM at the Cloud Run level
+    // so we don't need to do additional authentication here
+
     const token = await getCloudRunToken();
 
     // Return the token with an expiration
