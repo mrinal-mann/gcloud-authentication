@@ -1,47 +1,51 @@
-// src/middleware/firebase.ts
 import admin from "firebase-admin";
 import { Request, Response, NextFunction } from "express";
 import dotenv from "dotenv";
 
+// Load environment variables
 dotenv.config();
 
-// Function to properly format the private key
-function formatPrivateKey(key: string | undefined): string {
-  if (!key) return "";
+// Check if Firebase environment variables are set
+const projectId = process.env.FIREBASE_PROJECT_ID;
+const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+const privateKeyRaw = process.env.FIREBASE_PRIVATE_KEY;
 
-  // If the key already contains actual newlines, return it as is
-  if (key.includes("\n") && !key.includes("\\n")) {
-    return key;
-  }
-
-  // Replace \\n with actual newlines and ensure proper PEM format
-  const formattedKey = key.replace(/\\n/g, "\n");
-
-  // Ensure the key has the correct beginning and ending
-  if (!formattedKey.startsWith("-----BEGIN PRIVATE KEY-----")) {
-    return `-----BEGIN PRIVATE KEY-----\n${formattedKey}\n-----END PRIVATE KEY-----\n`;
-  }
-
-  return formattedKey;
+if (!projectId || !clientEmail || !privateKeyRaw) {
+  console.error("Missing Firebase credentials in environment variables:");
+  console.error(`  FIREBASE_PROJECT_ID: ${projectId ? "Set" : "Missing"}`);
+  console.error(`  FIREBASE_CLIENT_EMAIL: ${clientEmail ? "Set" : "Missing"}`);
+  console.error(`  FIREBASE_PRIVATE_KEY: ${privateKeyRaw ? "Set" : "Missing"}`);
+  throw new Error(
+    "Firebase configuration is incomplete. Check your environment variables."
+  );
 }
 
 // Initialize Firebase Admin SDK
-try {
-  if (!admin.apps.length) {
-    const privateKey = formatPrivateKey(process.env.FIREBASE_PRIVATE_KEY);
+if (!admin.apps.length) {
+  const privateKey = privateKeyRaw.replace(/\\n/g, "\n");
 
-    console.log("Initializing Firebase Admin SDK...");
+  try {
     admin.initializeApp({
       credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        projectId,
+        clientEmail,
         privateKey,
       }),
     });
     console.log("Firebase Admin SDK initialized successfully");
+  } catch (error) {
+    console.error("Error initializing Firebase Admin SDK:", error);
+    throw error;
   }
-} catch (error) {
-  console.error("Error initializing Firebase:", error);
+}
+
+// Extend Express Request type
+declare global {
+  namespace Express {
+    interface Request {
+      user?: admin.auth.DecodedIdToken;
+    }
+  }
 }
 
 /**
@@ -72,13 +76,4 @@ export function verifyFirebaseToken(
       console.error("Error verifying Firebase token:", error);
       res.status(403).json({ error: "Unauthorized: Invalid token" });
     });
-}
-
-// Add type definition for the user property on Request
-declare global {
-  namespace Express {
-    interface Request {
-      user?: admin.auth.DecodedIdToken;
-    }
-  }
 }
